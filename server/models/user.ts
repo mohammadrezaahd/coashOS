@@ -1,7 +1,15 @@
-import { IUser } from "@/interfaces/DTOs/users";
+// Persistence shape for the existing server scaffold; distinct from public profiles.
+interface IUser {
+  email: string;
+  password?: string;
+  isOAuth: boolean;
+  image?: string;
+  role: "USER" | "ADMIN";
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: number;
+}
 import mongoose from "mongoose";
-
-
 
 const schema = new mongoose.Schema<IUser>({
   email: { type: String, required: true, unique: true },
