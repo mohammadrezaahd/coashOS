@@ -1,39 +1,16 @@
 "use client";
-
 import { CssBaseline } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
+import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
 import { theme } from "./Theme";
-import { useEffect } from "react";
-
+import { WorkspaceProvider } from "@/components/workspace/WorkspaceProvider";
 export default function Providers({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (
-          mutation.type === "attributes" &&
-          mutation.attributeName === "class"
-        ) {
-          console.log(
-            "🔥 HTML CLASS CHANGED:",
-            document.documentElement.className,
-          );
-          console.trace();
-        }
-      }
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <ThemeProvider theme={theme} defaultMode="light">
-      <CssBaseline />
-      {children}
-    </ThemeProvider>
+    <AppRouterCacheProvider>
+      <ThemeProvider theme={theme} defaultMode="light">
+        <CssBaseline />
+        <WorkspaceProvider>{children}</WorkspaceProvider>
+      </ThemeProvider>
+    </AppRouterCacheProvider>
   );
 }

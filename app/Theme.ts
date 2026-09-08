@@ -10,7 +10,8 @@ export const theme = createTheme({
       profileHero: "linear-gradient(135deg, #dcfce7 0%, #ffffff 60%)",
     },
     dark: {
-      profileHero: "linear-gradient(135deg, #052e16 0%, #1a1c1a 58%, #111211 100%)",
+      profileHero:
+        "linear-gradient(135deg, #052e16 0%, #1a1c1a 58%, #111211 100%)",
     },
   },
 
@@ -29,7 +30,7 @@ export const theme = createTheme({
     light: {
       palette: {
         primary: {
-          main: "#22c55e",
+          main: "#3d7e32",
           dark: "#166534",
           light: "#dcfce7",
           contrastText: "#ffffff",
@@ -42,7 +43,7 @@ export const theme = createTheme({
 
         text: {
           primary: "#111211",
-          secondary: "#7a8078",
+          secondary: "#626e66",
         },
 
         divider: "#e4e6e3",
@@ -59,7 +60,7 @@ export const theme = createTheme({
         },
 
         success: {
-          main: "#22c55e",
+          main: "#3d7e32",
           dark: "#166534",
           light: "#dcfce7",
           contrastText: "#ffffff",
@@ -95,10 +96,10 @@ export const theme = createTheme({
     dark: {
       palette: {
         primary: {
-          main: "#22c55e",
+          main: "#c5f57a",
           dark: "#166534",
           light: "#dcfce7",
-          contrastText: "#ffffff",
+          contrastText: "#14221a",
         },
 
         background: {
@@ -125,10 +126,10 @@ export const theme = createTheme({
         },
 
         success: {
-          main: "#22c55e",
+          main: "#c5f57a",
           dark: "#166534",
           light: "#dcfce7",
-          contrastText: "#ffffff",
+          contrastText: "#14221a",
         },
 
         muted: {
@@ -160,7 +161,7 @@ export const theme = createTheme({
   },
 
   typography: {
-    fontFamily: `"Inter", "Roboto", "Helvetica", "Arial", sans-serif`,
+    fontFamily: `"Inter", "Arial", sans-serif`,
 
     h1: {
       fontWeight: 700,
