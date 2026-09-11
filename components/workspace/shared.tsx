@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
+  Fab,
   Box,
   Button,
   Card,
@@ -16,6 +17,7 @@ import {
 import {
   DarkModeOutlined,
   LightModeOutlined,
+  Add,
   Bolt,
   ArrowForward,
 } from "@mui/icons-material";
@@ -207,3 +209,38 @@ export const twoColumns = {
   gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1.7fr) minmax(280px, 1fr)" },
   gap: 3,
 };
+
+export function FloatingAdd({
+  label,
+  href,
+  onClick,
+}: {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+}) {
+  const props = {
+    color: "primary" as const,
+    variant: "extended" as const,
+    "aria-label": label,
+    sx: {
+      position: "fixed",
+      right: { xs: 20, md: 32 },
+      bottom: "max(24px, env(safe-area-inset-bottom))",
+      zIndex: 1050,
+      gap: 1,
+      boxShadow: 6,
+    },
+  };
+  return href ? (
+    <Fab {...props} component={Link} href={href}>
+      <Add />
+      {label}
+    </Fab>
+  ) : (
+    <Fab {...props} onClick={onClick}>
+      <Add />
+      {label}
+    </Fab>
+  );
+}

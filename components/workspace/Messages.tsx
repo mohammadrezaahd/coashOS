@@ -2,217 +2,322 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Avatar,
+  Alert,
   Box,
   Button,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import { SendOutlined } from "@mui/icons-material";
-import { useWorkspace } from "./WorkspaceProvider";
-import { uid } from "./data";
-import { Empty, PageHeading, Panel, useDashboard } from "./shared";
+import { Send } from "@mui/icons-material";
+import { api, useWorkspace } from "./WorkspaceProvider";
+import { Empty, FloatingAdd, PageHeading, Panel, useDashboard } from "./shared";
+import type { WorkspacePerson } from "@/interfaces/Workspace.interface";
 export function Messages() {
-  const { isCoach, role, id } = useDashboard();
-  const { trainees, coachProfile, messages, setMessages } = useWorkspace();
-  const search = useSearchParams();
-  const [selected, setSelected] = useState(
-    search.get("trainee") ?? trainees[0].id,
-  );
-  const [query, setQuery] = useState("");
-  const [text, setText] = useState("");
-  const personId = isCoach ? selected : id;
-  const person = isCoach
-    ? trainees.find((p) => p.id === selected)
-    : coachProfile;
-  const thread = messages.filter((m) => m.traineeId === personId);
+  const { isCoach } = useDashboard();
+  const { user, conversations, messages, requests, mutate } = useWorkspace();
+  const query = useSearchParams();
+  const [selected, setSelected] = useState(""),
+    [text, setText] = useState(""),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false),
+    [find, setFind] = useState(false),
+    [q, setQ] = useState(""),
+    [coaches, setCoaches] = useState<WorkspacePerson[]>([]);
+  const conversation =
+    conversations.find((c) => c.id === selected) ??
+    conversations.find((c) => c.traineeId === query.get("trainee")) ??
+    conversations[0];
+  const request = requests.find((r) => r.conversationId === conversation?.id);
+  async function act(path: string, method: string, body: unknown) {
+    setBusy(true);
+    setError("");
+    try {
+      await mutate(path, method, body);
+      return true;
+    } catch (e) {
+      setError((e as Error).message);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <>
       <PageHeading
-        eyebrow="Stay connected"
-        title="Good coaching is a conversation."
-        description="A little guidance can make a big difference."
+        title="Messages"
+        description={
+          isCoach
+            ? "Chat first, then accept a coaching request in the conversation."
+            : "Get to know a coach. Send your coaching request here when you’re ready."
+        }
       />
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
+          {error}
+        </Alert>
+      )}
+      {!isCoach && (
+        <FloatingAdd label="Find a coach" onClick={() => setFind(true)} />
+      )}
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            md: isCoach ? "280px minmax(0,1fr)" : "1fr",
-          },
-          gap: 2,
+          gridTemplateColumns: { xs: "1fr", md: "280px minmax(0,1fr)" },
+          gap: 3,
         }}
       >
-        {isCoach && (
-          <Panel>
-            <TextField
-              label="Find a trainee"
-              size="small"
-              fullWidth
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <Stack
-              sx={{
-                mt: 2,
-                maxHeight: { xs: 180, md: 510 },
-                overflow: "auto",
-                gap: 1,
-              }}
-            >
-              {trainees
-                .filter((p) =>
-                  p.name.toLowerCase().includes(query.toLowerCase()),
-                )
-                .map((p) => (
-                  <Button
-                    key={p.id}
-                    onClick={() => {
-                      setSelected(p.id);
-                      setText("");
-                    }}
-                    sx={{
-                      justifyContent: "flex-start",
-                      textAlign: "left",
-                      color: "text.primary",
-                      bgcolor:
-                        selected === p.id ? "action.selected" : "transparent",
-                      py: 1.5,
-                      gap: 1.5,
-                    }}
-                  >
-                    <Avatar sx={{ width: 32, height: 32, fontSize: 13 }}>
-                      {p.name[0]}
-                    </Avatar>
-                    <Box>
-                      <Typography sx={{ fontSize: 14, fontWeight: 600 }}>
-                        {p.name}
-                      </Typography>
-                      <Typography color="text.secondary" sx={{ fontSize: 12 }}>
-                        {p.level}
-                      </Typography>
-                    </Box>
-                  </Button>
-                ))}
-            </Stack>
-          </Panel>
-        )}
-        <Panel>
-          <Stack
-            direction="row"
-            sx={{
-              pb: 2,
-              borderBottom: "1px solid",
-              borderColor: "divider",
-              alignItems: "center",
-              gap: 1.5,
-            }}
-          >
-            <Avatar sx={{ bgcolor: "green.main", color: "green.sub" }}>
-              {person?.name[0]}
-            </Avatar>
-            <Box>
-              <Typography sx={{ fontWeight: 600 }}>
-                {person?.name ?? "Choose a conversation"}
+        <Panel title="Conversations">
+          <Stack sx={{ gap: 1 }}>
+            {conversations.map((c) => (
+              <Button
+                key={c.id}
+                variant={conversation?.id === c.id ? "contained" : "text"}
+                onClick={() => {
+                  setSelected(c.id);
+                  setText("");
+                }}
+                sx={{ justifyContent: "flex-start", py: 2 }}
+              >
+                {isCoach ? c.traineeName : c.coachName}
+                {requests.some(
+                  (r) => r.conversationId === c.id && r.status === "pending",
+                ) && <Chip size="small" label="Request" sx={{ ml: 1 }} />}
+              </Button>
+            ))}
+            {!conversations.length && (
+              <Typography color="text.secondary">
+                {isCoach
+                  ? "New trainee conversations appear here."
+                  : "Find a coach to start a conversation."}
               </Typography>
-              <Typography color="text.secondary" sx={{ fontSize: 13 }}>
-                {isCoach ? "Trainee" : "Your coach"}
-              </Typography>
-            </Box>
+            )}
           </Stack>
-          <Box
-            aria-live="polite"
-            sx={{ minHeight: 310, maxHeight: 460, overflow: "auto", py: 3 }}
+        </Panel>
+        {conversation ? (
+          <Panel
+            title={isCoach ? conversation.traineeName : conversation.coachName}
           >
             <Stack sx={{ gap: 2 }}>
-              {thread.map((m) => (
-                <Box
-                  key={m.id}
-                  sx={{
-                    alignSelf: m.sender === role ? "flex-end" : "flex-start",
-                    maxWidth: "85%",
-                  }}
+              <Box
+                role="log"
+                aria-label="Conversation messages"
+                aria-live="polite"
+                sx={{
+                  minHeight: 240,
+                  maxHeight: "50dvh",
+                  overflowY: "auto",
+                  p: 1,
+                }}
+              >
+                {messages
+                  .filter((m) => m.conversationId === conversation.id)
+                  .map((m) => (
+                    <Box
+                      key={m.id}
+                      sx={{
+                        ml: m.sender === user!.role ? "auto" : 0,
+                        mr: m.sender === user!.role ? 0 : "auto",
+                        mb: 2,
+                        p: 2,
+                        borderRadius: 3,
+                        maxWidth: "85%",
+                        bgcolor:
+                          m.sender === user!.role
+                            ? "green.main"
+                            : "action.hover",
+                        color:
+                          m.sender === user!.role
+                            ? "green.sub"
+                            : "text.primary",
+                        overflowWrap: "anywhere",
+                      }}
+                    >
+                      <Typography sx={{ whiteSpace: "pre-wrap" }}>
+                        {m.text}
+                      </Typography>
+                      <Typography variant="caption">
+                        {new Date(m.time).toLocaleString()}
+                      </Typography>
+                    </Box>
+                  ))}
+              </Box>
+              {request && (
+                <Alert
+                  severity={request.status === "accepted" ? "success" : "info"}
                 >
-                  <Box
-                    sx={{
-                      px: 2,
-                      py: 1.5,
-                      borderRadius: 3,
-                      bgcolor:
-                        m.sender === role ? "green.main" : "action.hover",
-                      color: m.sender === role ? "green.sub" : "text.primary",
-                    }}
-                  >
-                    <Typography sx={{ overflowWrap: "anywhere" }}>
-                      {m.text}
-                    </Typography>
-                  </Box>
-                  <Typography
-                    color="text.secondary"
-                    sx={{
-                      mt: 0.5,
-                      textAlign: m.sender === role ? "right" : "left",
-                      fontSize: 12,
-                    }}
-                  >
-                    {m.time}
+                  <Typography sx={{ fontWeight: 700 }}>
+                    Coaching request · {request.status}
                   </Typography>
-                </Box>
-              ))}
+                  <Typography variant="caption">
+                    {new Date(request.createdAt).toLocaleString()}
+                  </Typography>
+                  {request.status === "pending" && (
+                    <Stack direction="row" sx={{ gap: 1, mt: 1 }}>
+                      {isCoach ? (
+                        <>
+                          <Button
+                            disabled={busy}
+                            onClick={() =>
+                              act("requests", "PATCH", {
+                                id: request.id,
+                                status: "accepted",
+                              })
+                            }
+                          >
+                            Accept trainee
+                          </Button>
+                          <Button
+                            disabled={busy}
+                            onClick={() =>
+                              act("requests", "PATCH", {
+                                id: request.id,
+                                status: "declined",
+                              })
+                            }
+                          >
+                            Decline
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          disabled={busy}
+                          onClick={() =>
+                            act("requests", "PATCH", {
+                              id: request.id,
+                              status: "cancelled",
+                            })
+                          }
+                        >
+                          Cancel request
+                        </Button>
+                      )}
+                    </Stack>
+                  )}
+                </Alert>
+              )}
+              {!isCoach && !user!.coachId && request?.status !== "pending" && (
+                <Button
+                  variant="outlined"
+                  disabled={busy}
+                  onClick={() =>
+                    act("requests", "POST", { conversationId: conversation.id })
+                  }
+                >
+                  Request coaching from {conversation.coachName}
+                </Button>
+              )}
+              <Box
+                component="form"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (
+                    await act("messages", "POST", {
+                      conversationId: conversation.id,
+                      text,
+                    })
+                  )
+                    setText("");
+                }}
+                sx={{ display: "flex", gap: 1, alignItems: "flex-end" }}
+              >
+                <TextField
+                  fullWidth
+                  multiline
+                  maxRows={5}
+                  label="Your message"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 5000 } }}
+                />
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={busy || !text.trim()}
+                  aria-label="Send message"
+                  sx={{ height: 56, minWidth: 56 }}
+                >
+                  <Send />
+                </Button>
+              </Box>
             </Stack>
-            {!thread.length && (
-              <Empty
-                title="Start the conversation"
-                description="Ask a question, share a win, or check in about the plan."
-              />
-            )}
-          </Box>
+          </Panel>
+        ) : (
+          <Empty
+            title="Start with a conversation"
+            description={
+              isCoach
+                ? "Trainees can find your profile and message you before requesting coaching."
+                : "Use “Find a coach” to search and send a message."
+            }
+          />
+        )}
+      </Box>
+      <Dialog open={find} onClose={() => setFind(false)} fullWidth>
+        <DialogTitle>Find a coach</DialogTitle>
+        <DialogContent>
           <Box
             component="form"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              if (!text.trim() || !person) return;
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: uid(),
-                  traineeId: personId,
-                  sender: role,
-                  text: text.trim(),
-                  time: new Date().toLocaleTimeString("en-GB", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }),
-                },
-              ]);
-              setText("");
+              try {
+                const result = await api<{ coaches: WorkspacePerson[] }>(
+                  `coaches?q=${encodeURIComponent(q)}`,
+                );
+                setCoaches(result.coaches);
+              } catch (e) {
+                setError((e as Error).message);
+              }
             }}
+            sx={{ display: "flex", gap: 1, my: 2 }}
           >
-            <Stack direction="row" sx={{ gap: 1 }}>
-              <TextField
-                label="Your message"
-                multiline
-                maxRows={4}
-                fullWidth
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-              />
-              <Button
-                aria-label="Send message"
-                type="submit"
-                variant="contained"
-                disabled={!text.trim() || !person}
-              >
-                <SendOutlined />
-              </Button>
-            </Stack>
-            <Typography color="text.secondary" sx={{ fontSize: 12, mt: 1 }}>
-              Preview conversation. Messages are not sent to another person.
-            </Typography>
+            <TextField
+              fullWidth
+              label="Coach name"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <Button type="submit">Search</Button>
           </Box>
-        </Panel>
-      </Box>
+          <Stack sx={{ gap: 2 }}>
+            {coaches.map((c) => (
+              <Box
+                key={c.id}
+                sx={{
+                  p: 2,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 2,
+                }}
+              >
+                <Typography sx={{ fontWeight: 700 }}>{c.name}</Typography>
+                <Typography color="text.secondary">
+                  {c.bio || c.location || "Coach on coachOS"}
+                </Typography>
+                <Button
+                  disabled={busy}
+                  onClick={async () => {
+                    if (await act("conversations", "POST", { coachId: c.id })) {
+                      setSelected(`${c.id}:${user!.id}`);
+                      setFind(false);
+                    }
+                  }}
+                >
+                  Start conversation
+                </Button>
+              </Box>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFind(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

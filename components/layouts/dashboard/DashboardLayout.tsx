@@ -1,7 +1,7 @@
 "use client";
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Avatar,
   Box,
@@ -27,13 +27,12 @@ import {
   ThemeToggle,
   useDashboard,
 } from "@/components/workspace/shared";
-import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
+import { api, useWorkspace } from "@/components/workspace/WorkspaceProvider";
 export function DashboardLayout({ children }: { children: ReactNode }) {
-  const { base, isCoach, id } = useDashboard();
-  const { coachProfile, trainees } = useWorkspace();
-  const profile = isCoach
-    ? coachProfile
-    : (trainees.find((p) => p.id === id) ?? trainees[0]);
+  const { base, isCoach } = useDashboard();
+  const { user, clear, reminders } = useWorkspace();
+  const router = useRouter();
+  const profile = user!;
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const nav = [
@@ -47,6 +46,31 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       ? [{ label: "Trainees", path: "/trainees", icon: PeopleOutlined }]
       : []),
     { label: "Messages", path: "/messages", icon: MessageOutlined },
+    {
+      label: "Milestones & reports",
+      path: "/reports",
+      icon: FitnessCenterOutlined,
+    },
+    ...(isCoach
+      ? [
+          {
+            label: "Templates",
+            path: "/templates",
+            icon: FitnessCenterOutlined,
+          },
+        ]
+      : [
+          {
+            label: "Health data",
+            path: "/health",
+            icon: FitnessCenterOutlined,
+          },
+        ]),
+    {
+      label: `Reminders (${reminders.filter((r) => !r.read).length})`,
+      path: "/reminders",
+      icon: DashboardOutlined,
+    },
     { label: "Profile", path: "/profile", icon: PersonOutlined },
   ];
   const active = (path: string) =>
@@ -55,6 +79,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     <Box
       sx={{
         height: "100%",
+        overflowY: "auto",
         display: "flex",
         flexDirection: "column",
         p: 2.5,
@@ -113,8 +138,12 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </Typography>
         </Box>
         <Button
-          component={Link}
-          href="/login"
+          onClick={async () => {
+            await api("auth/logout", "POST");
+            clear();
+            router.push("/login");
+            router.refresh();
+          }}
           startIcon={<Logout />}
           sx={{ color: "#adbbb2" }}
         >
@@ -221,57 +250,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             mx: "auto",
             px: { xs: 2, md: 4 },
             pt: { xs: 3, md: 4 },
-            pb: { xs: 13, md: 5 },
+            pb: 12,
           }}
         >
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", mb: 2 }}
-          >
-            Client preview · Sample data · Changes last until refresh
-          </Typography>
           {children}
         </Box>
-      </Box>
-      <Box
-        component="nav"
-        aria-label="Mobile navigation"
-        sx={{
-          display: { xs: "flex", md: "none" },
-          position: "fixed",
-          bottom: "max(12px, env(safe-area-inset-bottom))",
-          left: 12,
-          right: 12,
-          zIndex: 1100,
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: 4,
-          bgcolor: "background.paper",
-          boxShadow: "0 8px 30px #0002",
-          p: 0.7,
-        }}
-      >
-        {nav.map((n) => (
-          <Button
-            key={n.path}
-            component={Link}
-            href={base + n.path}
-            aria-current={active(n.path) ? "page" : undefined}
-            sx={{
-              minWidth: 0,
-              flex: 1,
-              flexDirection: "column",
-              gap: 0.5,
-              fontSize: 12,
-              color: active(n.path) ? "green.sub" : "text.secondary",
-              bgcolor: active(n.path) ? "green.main" : "transparent",
-            }}
-          >
-            <n.icon fontSize="small" />
-            {n.label}
-          </Button>
-        ))}
       </Box>
     </Box>
   );

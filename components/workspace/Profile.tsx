@@ -16,7 +16,8 @@ import { Empty, PageHeading, Panel, twoColumns, useDashboard } from "./shared";
 import type { WorkspacePerson } from "@/interfaces/Workspace.interface";
 function ProfileForm({ person }: { person: WorkspacePerson }) {
   const { isCoach } = useDashboard();
-  const { setCoachProfile, setTrainees } = useWorkspace();
+  const { mutate } = useWorkspace();
+  const [error, setError] = useState("");
   const [draft, setDraft] = useState(person);
   const [saved, setSaved] = useState(false);
   const change = (
@@ -46,6 +47,7 @@ function ProfileForm({ person }: { person: WorkspacePerson }) {
   };
   return (
     <>
+      {error && <Alert severity="error">{error}</Alert>}
       <PageHeading
         eyebrow="Your profile"
         title="A little more about you."
@@ -53,14 +55,15 @@ function ProfileForm({ person }: { person: WorkspacePerson }) {
       />
       <Box
         component="form"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          if (isCoach) setCoachProfile(draft);
-          else
-            setTrainees((prev) =>
-              prev.map((p) => (p.id === draft.id ? draft : p)),
-            );
-          setSaved(true);
+          try {
+            await mutate("profile", "PUT", draft);
+            setSaved(true);
+            setError("");
+          } catch (e) {
+            setError((e as Error).message);
+          }
         }}
       >
         <Box sx={twoColumns}>
@@ -83,6 +86,7 @@ function ProfileForm({ person }: { person: WorkspacePerson }) {
                   required
                   type="email"
                   label="Email address"
+                  disabled
                   value={draft.email}
                   onChange={(e) => change("email", e.target.value)}
                 />
@@ -273,9 +277,7 @@ function ProfileForm({ person }: { person: WorkspacePerson }) {
               </Button>
             </Stack>
             {saved && (
-              <Alert severity="success">
-                Your profile is updated for this preview session.
-              </Alert>
+              <Alert severity="success">Your profile has been saved.</Alert>
             )}
           </Stack>
           <Panel>
@@ -322,15 +324,13 @@ function ProfileForm({ person }: { person: WorkspacePerson }) {
   );
 }
 export function Profile() {
-  const { isCoach, id } = useDashboard();
-  const { coachProfile, trainees } = useWorkspace();
-  const person = isCoach ? coachProfile : trainees.find((p) => p.id === id);
+  const { user: person } = useWorkspace();
   return person ? (
     <ProfileForm key={person.id} person={person} />
   ) : (
     <Empty
       title="Profile not found"
-      description="Open a demo account from the sign-in page."
+      description="Sign in again to load your profile."
     />
   );
 }

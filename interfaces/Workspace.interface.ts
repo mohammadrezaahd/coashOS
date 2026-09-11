@@ -41,6 +41,7 @@ export interface TrainingProgram {
   sections: TrainingSection[];
 }
 export interface TrainingCourse {
+  revision?: number;
   id: string;
   title: string;
   traineeId: string;
@@ -70,9 +71,120 @@ export interface WorkspacePerson {
   coachId: string; // Each trainee has exactly one coach.
 }
 export interface WorkspaceMessage {
+  conversationId?: string;
+  createdAt?: string;
   id: string;
   traineeId: string;
   sender: DashboardRole;
   text: string;
   time: string;
+}
+
+export interface SessionUser extends WorkspacePerson {
+  role: DashboardRole;
+  timezone: string;
+}
+export interface ActualSet {
+  key: string;
+  exerciseId: string;
+  title: string;
+  setNumber: number;
+  planned: {
+    reps: number;
+    weight: number;
+    unit: "kg" | "lb";
+    durationSeconds?: number;
+    restSeconds: number;
+  };
+  actual: {
+    reps: number | null;
+    weight: number | null;
+    unit: "kg" | "lb";
+    durationSeconds: number | null;
+    restSeconds: number | null;
+  };
+  completed: boolean;
+}
+export interface WorkoutLog {
+  id: string;
+  courseId: string;
+  programId: string;
+  traineeId: string;
+  coachId: string;
+  date: string;
+  timezone: string;
+  programTitle: string;
+  weightKg: number | null;
+  durationMinutes: number | null;
+  notes: string;
+  sets: ActualSet[];
+  updatedAt: string;
+}
+export interface MilestoneReport {
+  id: string;
+  courseId: string;
+  milestoneId: string;
+  title: string;
+  from: string;
+  to: string;
+  status: "upcoming" | "due" | "submitted";
+  weightBefore: number | null;
+  weightAfter: number | null;
+  weightBeforeSource: string;
+  weightAfterSource: string;
+  notes: string;
+  logs: WorkoutLog[];
+  sessionCount: number;
+  completedSets: number;
+  updatedAt?: string;
+}
+export interface Conversation {
+  id: string;
+  coachId: string;
+  traineeId: string;
+  coachName: string;
+  traineeName: string;
+}
+export interface CoachingRequest {
+  id: string;
+  conversationId: string;
+  coachId: string;
+  traineeId: string;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+  createdAt: string;
+}
+export interface TrainingTemplate {
+  id: string;
+  coachId: string;
+  title: string;
+  kind: "exercise" | "day" | "program";
+  program: TrainingProgram;
+  updatedAt: string;
+}
+export interface Reminder {
+  id: string;
+  userId: string;
+  courseId: string;
+  milestoneId: string;
+  title: string;
+  dueDate: string;
+  read: boolean;
+}
+export interface HealthDay {
+  id: string;
+  userId: string;
+  source: "apple-health" | "samsung-health";
+  date: string;
+  timezone: string;
+  steps?: number;
+  activeCalories?: number;
+  sleepMinutes?: number;
+  weightKg?: number;
+  updatedAt: string;
+}
+export interface HealthConnection {
+  id: string;
+  source: HealthDay["source"];
+  lastSyncAt?: string;
+  expiresAt: string;
 }

@@ -6,8 +6,6 @@ import {
   Alert,
   Box,
   Button,
-  Checkbox,
-  FormControlLabel,
   IconButton,
   InputAdornment,
   Stack,
@@ -24,23 +22,21 @@ import {
 } from "@mui/icons-material";
 import type { DashboardRole } from "@/interfaces/Workspace.interface";
 import { Brand, ThemeToggle } from "./shared";
-import { useWorkspace } from "./WorkspaceProvider";
+import { api, useWorkspace } from "./WorkspaceProvider";
 export function Auth({
   screen = "login",
 }: {
   screen?: "login" | "register" | "forgot";
 }) {
   const router = useRouter();
-  const { trainees } = useWorkspace();
+  const { refresh } = useWorkspace();
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const [role, setRole] = useState<DashboardRole>("coach");
   const [show, setShow] = useState(false);
   const [sent, setSent] = useState(false);
   const register = screen === "register";
   const forgot = screen === "forgot";
-  const enter = () =>
-    router.push(
-      `/dashboard/${role}/${role === "coach" ? "coach-1" : trainees[0].id}`,
-    );
   return (
     <Box
       sx={{
@@ -139,7 +135,7 @@ export function Auth({
                 ? "Choose your role to create your workspace."
                 : "Your people. Your plan. Let’s get to it."}
           </Typography>
-          {!forgot && (
+          {register && (
             <ToggleButtonGroup
               value={role}
               exclusive
@@ -153,10 +149,38 @@ export function Auth({
           )}
           <Box
             component="form"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              if (forgot) setSent(true);
-              else enter();
+              const fields = new FormData(e.currentTarget);
+              setBusy(true);
+              setError("");
+              try {
+                const result = await api<{
+                  user: { role: string; id: string };
+                }>(
+                  `auth/${forgot ? "forgot" : register ? "register" : "login"}`,
+                  "POST",
+                  {
+                    email: fields.get("email"),
+                    password: fields.get("password") ?? undefined,
+                    name: fields.get("name") ?? undefined,
+                    role,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  },
+                );
+                if (forgot) setSent(true);
+                else {
+                  await refresh();
+                  router.push(
+                    `/dashboard/${result.user.role}/${result.user.id}`,
+                  );
+                  router.refresh();
+                }
+              } catch (error) {
+                setError((error as Error).message);
+              } finally {
+                setBusy(false);
+              }
             }}
           >
             <Stack sx={{ gap: 2.5 }}>
@@ -205,12 +229,6 @@ export function Auth({
                   }}
                 />
               )}
-              {register && role === "trainee" && (
-                <TextField
-                  label="Coach invitation code (optional)"
-                  helperText="You can connect with your coach later."
-                />
-              )}
               {!register && !forgot && (
                 <Box sx={{ textAlign: "right" }}>
                   <Link
@@ -224,32 +242,23 @@ export function Auth({
                   </Link>
                 </Box>
               )}
-              {register && (
-                <FormControlLabel
-                  control={<Checkbox required />}
-                  label={
-                    <Typography sx={{ fontSize: 14 }}>
-                      I understand this is a client preview using sample data.
-                    </Typography>
-                  }
-                />
-              )}
+              {error && <Alert severity="error">{error}</Alert>}
               <Button
                 type="submit"
+                disabled={busy}
                 variant="contained"
                 size="large"
                 endIcon={<ArrowForward />}
               >
                 {forgot
-                  ? "Preview password reset"
+                  ? "Send reset link"
                   : register
-                    ? "Create account preview"
-                    : "Sign in to preview"}
+                    ? "Create account"
+                    : "Sign in"}
               </Button>
               {sent && (
                 <Alert severity="info">
-                  Password reset preview complete. No email was sent; account
-                  services are not connected yet.
+                  If an account exists, a password reset link has been sent.
                 </Alert>
               )}
             </Stack>
@@ -269,15 +278,6 @@ export function Auth({
               </>
             )}
           </Typography>
-          <Alert severity="info" variant="outlined" sx={{ fontSize: 13 }}>
-            Client preview only. No real account is created and passwords are
-            never stored.
-          </Alert>
-          {!forgot && (
-            <Button fullWidth sx={{ mt: 1 }} onClick={enter}>
-              Explore {role} demo without signing in
-            </Button>
-          )}
         </Box>
       </Box>
     </Box>
