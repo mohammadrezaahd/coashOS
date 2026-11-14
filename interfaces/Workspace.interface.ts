@@ -1,45 +1,62 @@
 import type { IMedInfo } from "./Coach.interface";
-/** Client domain. Collections use IDs; their array position is the only ordering source.
- * UI selection, expanded rows and editor state never become domain fields.
- */
+
 export type DashboardRole = "coach" | "trainee";
 export type CourseState = "Draft" | "Active" | "Upcoming" | "Completed";
-export interface TrainingSet {
-  id: string;
-  reps: number;
-  weight: number;
-  unit: "kg" | "lb";
+
+export enum TargetTypes {
+  DURATION = "Duration",
+  RPE = "RPE",
+  COUNT = "Count",
+  DISTANCE = "Distance",
+  WEIGHT = "Weight",
 }
-export interface TrainingExercise {
-  id: string;
+export enum DurationTypes { M = "minutes", S = "seconds" }
+export enum DistanceTypes { M = "meters", KM = "kilometers" }
+export enum WeightTypes { KG = "kg", LB = "lb" }
+export enum Equipments {
+  DB = "Dumbbell", BAR = "Bar", PLT = "Plate", ROPE = "Rope", STEP = "Step",
+  MBALL = "Medicine ball", MACHINE = "Machine",
+}
+
+export interface ITarget {
+  target: number;
+  targetType: TargetTypes;
+  targetUnit?: string;
+  repeat: number;
+  each?: boolean;
+  rpe?: number;
+  load?: number;
+  loadUnit?: WeightTypes;
+}
+export interface IExercise {
+  id?: string;
   title: string;
-  equipment: string;
-  notes: string;
-  restSeconds: number;
-  durationSeconds?: number;
+  desc?: string;
+  equipment?: Equipments;
+  target: ITarget;
+  restSeconds?: number;
   mediaUrl?: string;
-  sets: TrainingSet[];
 }
-export type TrainingBlock =
-  | { id: string; kind: "exercise"; exercise: TrainingExercise }
-  | {
-      id: string;
-      kind: "superset";
-      title: string;
-      rounds: number;
-      exercises: TrainingExercise[];
-    };
-export interface TrainingSection {
-  id: string;
+export interface ISet {
+  id?: string;
   title: string;
-  blocks: TrainingBlock[];
+  desc?: string;
+  repeat: number;
+  exercises: IExercise[];
 }
-export interface TrainingProgram {
-  id: string;
+export interface ISection {
+  id?: string;
   title: string;
-  notes: string;
-  sections: TrainingSection[];
+  sets: ISet[];
+  desc?: string;
 }
+export interface IProgram {
+  id?: string;
+  title: string;
+  workouts: ISection[];
+  notes?: string;
+}
+
 export interface TrainingCourse {
   id: string;
   title: string;
@@ -50,29 +67,16 @@ export interface TrainingCourse {
   startDate: string;
   durationWeeks: number;
   progress: number;
-  programs: TrainingProgram[];
+  programs: IProgram[];
   milestones: { id: string; title: string; week: number }[];
 }
+export interface SectionTemplate { id: string; name: string; section: ISection; createdAt: string; }
+export interface ProgramTemplate { id: string; name: string; program: IProgram; createdAt: string; }
+export type WorkoutTemplate = SectionTemplate | ProgramTemplate;
+
 export interface WorkspacePerson {
-  id: string;
-  name: string;
-  email: string;
-  location: string;
-  bio: string;
-  goal: string;
-  level: "Beginner" | "Intermediate" | "Advanced";
-  phoneNumber?: string;
-  birthDate?: string;
-  address?: string;
-  specialties?: string[];
-  certifications?: string[];
-  medicalInfo?: IMedInfo;
-  coachId: string; // Each trainee has exactly one coach.
+  id: string; name: string; email: string; location: string; bio: string; goal: string;
+  level: "Beginner" | "Intermediate" | "Advanced"; phoneNumber?: string; birthDate?: string;
+  address?: string; specialties?: string[]; certifications?: string[]; medicalInfo?: IMedInfo; coachId: string;
 }
-export interface WorkspaceMessage {
-  id: string;
-  traineeId: string;
-  sender: DashboardRole;
-  text: string;
-  time: string;
-}
+export interface WorkspaceMessage { id: string; traineeId: string; sender: DashboardRole; text: string; time: string; }

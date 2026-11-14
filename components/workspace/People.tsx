@@ -21,7 +21,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { Add, Close } from "@mui/icons-material";
+import { Add } from "@mui/icons-material";
 import { useWorkspace } from "./WorkspaceProvider";
 import {
   Empty,

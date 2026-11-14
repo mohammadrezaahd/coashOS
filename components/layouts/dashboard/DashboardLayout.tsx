@@ -16,6 +16,7 @@ import {
   DashboardOutlined,
   PeopleOutlined,
   FitnessCenterOutlined,
+  BookmarkBorderOutlined,
   MessageOutlined,
   PersonOutlined,
   Logout,
@@ -44,7 +45,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       icon: FitnessCenterOutlined,
     },
     ...(isCoach
-      ? [{ label: "Trainees", path: "/trainees", icon: PeopleOutlined }]
+      ? [
+          { label: "Templates", path: "/templates", icon: BookmarkBorderOutlined },
+          { label: "Trainees", path: "/trainees", icon: PeopleOutlined },
+        ]
       : []),
     { label: "Messages", path: "/messages", icon: MessageOutlined },
     { label: "Profile", path: "/profile", icon: PersonOutlined },
@@ -229,7 +233,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             color="text.secondary"
             sx={{ display: "block", mb: 2 }}
           >
-            Client preview · Sample data · Changes last until refresh
+            Client preview · Sample data · Changes persist in this browser
           </Typography>
           {children}
         </Box>
