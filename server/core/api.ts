@@ -347,7 +347,10 @@ async function dispatch(req: Request, path: string[]) {
       coachProfile: coach
         ? publicCoach("passwordHash" in coach ? publicUser(coach) : coach)
         : null,
-      logs,
+      logs:
+        u.role === "trainee"
+          ? logs
+          : logs.map((log) => ({ ...log, notes: "", sets: [] })),
       templates,
       messages: messages.reverse(),
       conversations,
@@ -419,6 +422,14 @@ async function dispatch(req: Request, path: string[]) {
       throw new HttpError(400, "Each milestone needs a unique ID.");
     if (input.programs.some((p) => plannedSets(p).length > 1000))
       throw new HttpError(400, "A training day can contain at most 1000 sets.");
+    for (const assignment of input.weeklySchedule ?? []) {
+      if (assignment.programId && !input.programs.some((program) => program.id === assignment.programId))
+        throw new HttpError(400, "Weekly schedule references an unknown program.");
+    }
+    for (const override of input.scheduleOverrides ?? []) {
+      if (override.programId && !input.programs.some((program) => program.id === override.programId))
+        throw new HttpError(400, "Schedule override references an unknown program.");
+    }
     const revision = (existing?.revision ?? 0) + 1;
     const next: CourseRecord = {
       ...input,
@@ -474,9 +485,17 @@ async function dispatch(req: Request, path: string[]) {
       weightKg: input.weightKg,
       durationMinutes: input.durationMinutes,
       notes: input.notes,
+      checklistStatus: input.checklistStatus ?? existing?.checklistStatus ?? "in-progress",
       sets: planned.map((s) => ({
         ...s,
-        actual: input.sets.find((v) => v.key === s.key)!.actual,
+        actual: {
+          ...input.sets.find((v) => v.key === s.key)!.actual,
+          targets: s.planned.targets?.map((target) => ({
+            ...target,
+            value:
+              input.sets.find((v) => v.key === s.key)!.actual.targets?.find((value) => value.key === target.key)?.value ?? null,
+          })),
+        },
         completed: input.sets.find((v) => v.key === s.key)!.completed,
       })),
       updatedAt: new Date().toISOString(),
@@ -512,6 +531,7 @@ async function dispatch(req: Request, path: string[]) {
         return edited
           ? {
               ...generated,
+              logs: u.role === "trainee" ? generated.logs : [],
               weightBefore: edited.weightBefore,
               weightAfter: edited.weightAfter,
               weightBeforeSource: "Edited report",
@@ -520,7 +540,7 @@ async function dispatch(req: Request, path: string[]) {
               updatedAt: edited.updatedAt,
               status: "submitted",
             }
-          : generated;
+          : { ...generated, logs: u.role === "trainee" ? generated.logs : [] };
       }),
     });
   }

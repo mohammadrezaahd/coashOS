@@ -17,7 +17,7 @@ import type {
   ActualSet,
   WorkoutLog,
 } from "@/interfaces/Workspace.interface";
-import { plannedSets, dateInZone } from "@/utils/workout";
+import { plannedSets, dateInZone, targetLabels } from "@/utils/workout";
 import { useWorkspace } from "./WorkspaceProvider";
 import { Panel } from "./shared";
 export function WorkoutForm({
@@ -96,6 +96,11 @@ function LogEditor({
             weightKg: weight === "" ? null : Number(weight),
             durationMinutes: minutes === "" ? null : Number(minutes),
             notes,
+            checklistStatus: sets.every((set) => set.completed)
+              ? "completed"
+              : sets.some((set) => set.completed)
+                ? "in-progress"
+                : "not-started",
             sets: sets.map(({ key, actual, completed }) => ({
               key,
               actual,
@@ -180,6 +185,23 @@ function LogEditor({
                   }
                 />
               ))}
+              {!!s.planned.targets?.length && (
+                <Box sx={{ mt: 2, display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, 1fr)" }, gap: 2 }}>
+                  {s.planned.targets.map((target) => {
+                    const actual = s.actual.targets?.find((value) => value.key === target.key)?.value ?? null;
+                    return (
+                      <TextField
+                        key={target.key}
+                        type="number"
+                        label={`${targetLabels[target.key]} · ${target.value} ${target.unit}`}
+                        value={actual ?? ""}
+                        slotProps={{ htmlInput: { min: 0, step: 0.1 } }}
+                        onChange={(e) => update(i, { actual: { ...s.actual, targets: s.planned.targets!.map((planned) => ({ ...planned, value: planned.key === target.key ? (e.target.value === "" ? null : Number(e.target.value)) : (s.actual.targets?.find((value) => value.key === planned.key)?.value ?? null) })) } })}
+                      />
+                    );
+                  })}
+                </Box>
+              )}
               <TextField
                 select
                 label="Weight unit"

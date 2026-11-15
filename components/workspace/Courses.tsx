@@ -23,6 +23,7 @@ import type {
 } from "@/interfaces/Workspace.interface";
 import { useWorkspace } from "./WorkspaceProvider";
 import { exercisesOf } from "./data";
+import { equipmentForCourse } from "@/utils/workout";
 import {
   Empty,
   GoLink,
@@ -284,6 +285,15 @@ export function CourseDetails() {
           </Stack>
         </Panel>
         <Stack sx={{ gap: 3 }}>
+          {!isCoach && (
+            <Panel title="Required equipment">
+              {equipmentForCourse(c).length ? (
+                <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
+                  {equipmentForCourse(c).map((item) => <Chip key={item} label={item} variant="outlined" />)}
+                </Stack>
+              ) : <Typography color="text.secondary">No equipment required for this course.</Typography>}
+            </Panel>
+          )}
           <Panel title="The plan">
             <Typography color="text.secondary">{c.description}</Typography>
             <Divider sx={{ my: 2 }} />

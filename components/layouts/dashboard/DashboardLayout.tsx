@@ -42,6 +42,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       path: "/courses",
       icon: FitnessCenterOutlined,
     },
+    ...(!isCoach
+      ? [{ label: "Calendar", path: "/calendar", icon: DashboardOutlined }]
+      : []),
     ...(isCoach
       ? [{ label: "Trainees", path: "/trainees", icon: PeopleOutlined }]
       : []),

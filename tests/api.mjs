@@ -246,7 +246,16 @@ try {
   assert.equal(reports[0].weightBefore, 90);
   assert.equal(reports[0].weightAfter, 88);
   assert.equal(reports[0].sessionCount, 1);
-  assert.equal(reports[0].logs[0].sets[0].actual.restSeconds, 120);
+  assert.equal(reports[0].logs.length, 0);
+  const traineeReports = (
+    await request(
+      "reports?courseId=" + c.id,
+      "GET",
+      undefined,
+      trainee.cookie,
+    )
+  ).data.reports;
+  assert.equal(traineeReports[0].logs[0].sets[0].actual.restSeconds, 120);
   await request(
     "reports?courseId=" + c.id,
     "GET",

@@ -19,11 +19,22 @@ import {
 } from "@mui/material";
 import { Add, DeleteOutlined } from "@mui/icons-material";
 import type {
+  TargetMetric,
+  TargetMetricKey,
+  TargetMetricUnit,
   TrainingBlock,
   TrainingExercise,
 } from "@/interfaces/Workspace.interface";
 import { newExercise, uid } from "./data";
 import { validateExercise } from "@/utils/trainingValidation";
+const targetOptions: { key: TargetMetricKey; label: string; unit: TargetMetricUnit }[] = [
+  { key: "repetitions", label: "Repetitions", unit: "count" },
+  { key: "external-load", label: "External load", unit: "kg" },
+  { key: "step-count", label: "Step count", unit: "steps" },
+  { key: "duration", label: "Duration", unit: "seconds" },
+  { key: "distance", label: "Distance", unit: "meters" },
+  { key: "rpe", label: "RPE", unit: "score" },
+];
 
 export function ExerciseEditor({
   block,
@@ -212,6 +223,38 @@ export function ExerciseEditor({
               />
             </Box>
             <Divider />
+            <Stack sx={{ gap: 1.5 }}>
+              <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                <Box>
+                  <Typography sx={{ fontWeight: 650 }}>Exercise targets</Typography>
+                  <Typography variant="caption" color="text.secondary">Add independent metrics such as reps, load, steps, duration, distance, or RPE.</Typography>
+                </Box>
+                <Button
+                  size="small"
+                  startIcon={<Add />}
+                  onClick={() => {
+                    const option = targetOptions.find((item) => !exercise.targets?.some((target) => target.key === item.key)) ?? targetOptions[0];
+                    const target: TargetMetric = { key: option.key, value: option.key === "repetitions" ? exercise.sets[0]?.reps ?? 1 : 0, unit: option.unit };
+                    update({ ...exercise, targets: [...(exercise.targets ?? []), target] });
+                  }}
+                >Add target</Button>
+              </Stack>
+              {(exercise.targets ?? []).map((target, targetIndex) => (
+                <Box key={`${target.key}-${targetIndex}`} sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "1.4fr 1fr 1fr auto" }, gap: 1, alignItems: "center" }}>
+                  <TextField select size="small" label="Metric" value={target.key} onChange={(e) => {
+                    const next = targetOptions.find((item) => item.key === e.target.value)!;
+                    update({ ...exercise, targets: exercise.targets!.map((value, index) => index === targetIndex ? { ...value, key: next.key, unit: next.unit } : value) });
+                  }}>
+                    {targetOptions.map((option) => <MenuItem key={option.key} value={option.key}>{option.label}</MenuItem>)}
+                  </TextField>
+                  <TextField size="small" label="Target value" type="number" value={target.value} onChange={(e) => update({ ...exercise, targets: exercise.targets!.map((value, index) => index === targetIndex ? { ...value, value: number(e.target.value) } : value) })} slotProps={{ htmlInput: { min: 0, step: 0.1 } }} />
+                  <TextField select size="small" label="Unit" value={target.unit} onChange={(e) => update({ ...exercise, targets: exercise.targets!.map((value, index) => index === targetIndex ? { ...value, unit: e.target.value as TargetMetricUnit } : value) })}>
+                    {(["count", "kg", "lb", "steps", "seconds", "minutes", "meters", "kilometers", "score"] as TargetMetricUnit[]).map((unit) => <MenuItem key={unit} value={unit}>{unit}</MenuItem>)}
+                  </TextField>
+                  <IconButton aria-label={`Remove ${target.key} target`} onClick={() => update({ ...exercise, targets: exercise.targets!.filter((_, index) => index !== targetIndex) })}><DeleteOutlined /></IconButton>
+                </Box>
+              ))}
+            </Stack>
             <Stack
               direction="row"
               sx={{ justifyContent: "space-between", alignItems: "center" }}
