@@ -1,4 +1,6 @@
 "use client";
+import { WorkoutForm } from "./WorkoutForm";
+import { FloatingAdd } from "./shared";
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -8,28 +10,20 @@ import {
   Checkbox,
   Chip,
   Divider,
-  FormControlLabel,
-  LinearProgress,
   MenuItem,
   Stack,
   TextField,
   Typography,
   Alert,
 } from "@mui/material";
-import {
-  Add,
-  ArrowBack,
-  ArrowForward,
-  EditOutlined,
-  FitnessCenter,
-  TaskAlt,
-} from "@mui/icons-material";
+import { ArrowBack, EditOutlined, FitnessCenter } from "@mui/icons-material";
 import type {
   TrainingCourse,
   TrainingProgram,
 } from "@/interfaces/Workspace.interface";
 import { useWorkspace } from "./WorkspaceProvider";
 import { exercisesOf } from "./data";
+import { equipmentForCourse } from "@/utils/workout";
 import {
   Empty,
   GoLink,
@@ -41,7 +35,7 @@ import {
 } from "./shared";
 export function CourseCard({ course }: { course: TrainingCourse }) {
   const { base, isCoach } = useDashboard();
-  const { trainees } = useWorkspace();
+  const { trainees, logs } = useWorkspace();
   return (
     <Panel>
       <Stack
@@ -84,17 +78,9 @@ export function CourseCard({ course }: { course: TrainingCourse }) {
           label={`${course.programs.length} training days`}
         />
       </Stack>
-      <Stack direction="row" sx={{ justifyContent: "space-between", mb: 1 }}>
-        <Typography color="text.secondary" sx={{ fontSize: 13 }}>
-          Course progress
-        </Typography>
-        <Typography sx={{ fontSize: 13 }}>{course.progress}%</Typography>
-      </Stack>
-      <LinearProgress
-        variant="determinate"
-        value={course.progress}
-        sx={{ height: 5, borderRadius: 10, mb: 2 }}
-      />
+      <Typography color="text.secondary" sx={{ mb: 2 }}>
+        {logs.filter((l) => l.courseId === course.id).length} sessions recorded
+      </Typography>
       <Stack direction="row" sx={{ justifyContent: "space-between" }}>
         <GoLink href={`${base}/courses/${course.id}`}>View course</GoLink>
         {isCoach && (
@@ -136,19 +122,10 @@ export function Courses() {
             ? "Create, refine, and follow each training cycle."
             : "Everything your coach has planned for you."
         }
-        action={
-          isCoach && (
-            <Button
-              component={Link}
-              href={base + "/courses/new"}
-              variant="contained"
-              startIcon={<Add />}
-            >
-              Create course
-            </Button>
-          )
-        }
       />
+      {isCoach && (
+        <FloatingAdd href={base + "/courses/new"} label="Create course" />
+      )}
       <Stack direction={{ xs: "column", sm: "row" }} sx={{ gap: 2, mb: 3 }}>
         <TextField
           label="Search courses"
@@ -308,6 +285,15 @@ export function CourseDetails() {
           </Stack>
         </Panel>
         <Stack sx={{ gap: 3 }}>
+          {!isCoach && (
+            <Panel title="Required equipment">
+              {equipmentForCourse(c).length ? (
+                <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
+                  {equipmentForCourse(c).map((item) => <Chip key={item} label={item} variant="outlined" />)}
+                </Stack>
+              ) : <Typography color="text.secondary">No equipment required for this course.</Typography>}
+            </Panel>
+          )}
           <Panel title="The plan">
             <Typography color="text.secondary">{c.description}</Typography>
             <Divider sx={{ my: 2 }} />
@@ -329,21 +315,17 @@ export function CourseDetails() {
                 </Stack>
               ))}
             </Stack>
-            <LinearProgress
-              variant="determinate"
-              value={c.progress}
-              sx={{ my: 2, borderRadius: 10 }}
-            />
-            <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-              {c.progress}% of the course completed
-            </Typography>
           </Panel>
           <Panel title="Milestones">
             <Stack sx={{ gap: 2 }}>
               {c.milestones.map((m) => (
                 <Stack direction="row" key={m.id} sx={{ gap: 2 }}>
                   <Chip size="small" label={`Week ${m.week}`} />
-                  <Typography sx={{ fontSize: 14 }}>{m.title}</Typography>
+                  <GoLink
+                    href={`${base}/reports?course=${c.id}&milestone=${m.id}`}
+                  >
+                    {m.title}
+                  </GoLink>
                 </Stack>
               ))}
             </Stack>
@@ -513,8 +495,7 @@ export function ProgramDetails() {
     programId: string;
   }>();
   const { base, isCoach, id } = useDashboard();
-  const { courses, completedSessions, setCompletedSessions } = useWorkspace();
-  const [confirm, setConfirm] = useState(false);
+  const { courses } = useWorkspace();
   const course = courses.find(
     (c) =>
       c.id === courseId &&
@@ -529,7 +510,6 @@ export function ProgramDetails() {
         action={<GoLink href={base + "/courses"}>My courses</GoLink>}
       />
     );
-  const done = completedSessions.includes(program.id);
   return (
     <>
       <Button
@@ -557,37 +537,10 @@ export function ProgramDetails() {
         }
       />
       <Box sx={{ maxWidth: 960 }}>
-        <ProgramContent program={program} interactive={!isCoach} />
-        {!isCoach && (
-          <Box sx={{ mt: 3 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={confirm || done}
-                  disabled={done}
-                  onChange={(e) => setConfirm(e.target.checked)}
-                />
-              }
-              label="I have finished this session"
-            />
-            <Button
-              fullWidth
-              variant="contained"
-              disabled={!confirm || done}
-              startIcon={<TaskAlt />}
-              onClick={() =>
-                setCompletedSessions((prev) => [...prev, program.id])
-              }
-            >
-              {done ? "Session completed" : "Finish session"}
-            </Button>
-            {done && (
-              <Alert severity="success" sx={{ mt: 2 }}>
-                Session complete. Take a moment to recover — you showed up
-                today.
-              </Alert>
-            )}
-          </Box>
+        {isCoach ? (
+          <ProgramContent program={program} />
+        ) : (
+          <WorkoutForm course={course!} program={program} />
         )}
       </Box>
     </>

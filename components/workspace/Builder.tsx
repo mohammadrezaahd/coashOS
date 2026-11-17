@@ -1,4 +1,6 @@
 "use client";
+import { TemplateTools } from "./Templates";
+import { FloatingAdd } from "./shared";
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -24,7 +26,6 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  Add,
   ArrowBack,
   ArrowDownward,
   ArrowUpward,
@@ -39,7 +40,7 @@ import type {
   TrainingProgram,
 } from "@/interfaces/Workspace.interface";
 import { useWorkspace } from "./WorkspaceProvider";
-import { exercisesOf, newExercise, newProgram, uid } from "./data";
+import { newExercise, newProgram, uid } from "./data";
 import { Empty, GoLink, PageHeading, Panel, useDashboard } from "./shared";
 import { ExerciseEditor } from "./ExerciseEditor";
 import { ProgramContent } from "./Courses";
@@ -75,6 +76,14 @@ export function Builder() {
         action={<GoLink href={base + "/courses"}>Courses</GoLink>}
       />
     );
+  if (!trainees.length)
+    return (
+      <Empty
+        title="Connect with a trainee first"
+        description="Accept a coaching request in Messages before creating a plan."
+        action={<GoLink href={base + "/messages"}>Open messages</GoLink>}
+      />
+    );
   return (
     <CourseEditor
       key={courseId ?? "new"}
@@ -84,7 +93,7 @@ export function Builder() {
           title: "",
           traineeId: trainees.some((p) => p.id === search.get("trainee"))
             ? search.get("trainee")!
-            : trainees[0].id,
+            : (trainees[0]?.id ?? ""),
           status: "Draft",
           goal: "",
           description: "",
@@ -101,7 +110,7 @@ export function Builder() {
 function CourseEditor({ initial }: { initial: TrainingCourse }) {
   const { base } = useDashboard();
   const router = useRouter();
-  const { trainees, setCourses } = useWorkspace();
+  const { trainees, mutate } = useWorkspace();
   const [draft, setDraft] = useState<TrainingCourse>(initial);
   const [step, setStep] = useState(0);
   const [day, setDay] = useState(0);
@@ -116,6 +125,10 @@ function CourseEditor({ initial }: { initial: TrainingCourse }) {
     action: () => void;
   } | null>(null);
   const [publish, setPublish] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [addKind, setAddKind] = useState("day");
+  const [targetSection, setTargetSection] = useState("");
+  const [saving, setSaving] = useState(false);
   const program = draft.programs[day];
   const update = (p: TrainingProgram) =>
     setDraft((prev) => ({
@@ -129,7 +142,7 @@ function CourseEditor({ initial }: { initial: TrainingCourse }) {
     }));
     setDay(draft.programs.length);
   };
-  function save(active: boolean) {
+  async function save(active: boolean) {
     const validation = active
       ? validateCourse(draft)
       : !draft.title.trim()
@@ -145,15 +158,128 @@ function CourseEditor({ initial }: { initial: TrainingCourse }) {
       id: draft.id || uid(),
       status: active ? ("Active" as const) : draft.status,
     };
-    setCourses((prev) =>
-      prev.some((c) => c.id === next.id)
-        ? prev.map((c) => (c.id === next.id ? next : c))
-        : [next, ...prev],
-    );
-    router.push(`${base}/courses/${next.id}`);
+    if (saving) return;
+    setSaving(true);
+    try {
+      await mutate("courses", "PUT", next);
+      router.push(`${base}/courses/${next.id}`);
+    } catch (e) {
+      setError((e as Error).message);
+      setPublish(false);
+    } finally {
+      setSaving(false);
+    }
   }
   return (
     <>
+      {step < 2 && (
+        <FloatingAdd
+          label={step === 0 ? "Add milestone" : "Add to plan"}
+          onClick={() => {
+            if (step === 0) {
+              setDraft((p) => ({
+                ...p,
+                milestones: [
+                  ...p.milestones,
+                  {
+                    id: uid(),
+                    title: "",
+                    week: Math.min(
+                      p.durationWeeks,
+                      (p.milestones.at(-1)?.week ?? 0) + 1,
+                    ),
+                  },
+                ],
+              }));
+            } else {
+              setTargetSection(program?.sections[0]?.id ?? "");
+              setAddKind(program ? "exercise" : "day");
+              setAdding(true);
+            }
+          }}
+        />
+      )}
+      <Dialog
+        open={adding}
+        onClose={() => setAdding(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Add to your plan</DialogTitle>
+        <DialogContent>
+          <Stack sx={{ gap: 2, pt: 1 }}>
+            <TextField
+              select
+              label="What would you like to add?"
+              value={addKind}
+              onChange={(e) => setAddKind(e.target.value)}
+            >
+              <MenuItem value="day">Training day</MenuItem>
+              <MenuItem value="section" disabled={!program}>
+                Section in current day
+              </MenuItem>
+              <MenuItem value="exercise" disabled={!program?.sections.length}>
+                Exercise
+              </MenuItem>
+              <MenuItem value="superset" disabled={!program?.sections.length}>
+                Superset
+              </MenuItem>
+            </TextField>
+            {["exercise", "superset"].includes(addKind) && (
+              <TextField
+                select
+                label="Section"
+                value={targetSection}
+                onChange={(e) => setTargetSection(e.target.value)}
+              >
+                {program?.sections.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.title}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAdding(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={
+              ["exercise", "superset"].includes(addKind) && !targetSection
+            }
+            onClick={() => {
+              if (addKind === "day") addDay();
+              else if (addKind === "section")
+                update({
+                  ...program,
+                  sections: [
+                    ...program.sections,
+                    { id: uid(), title: "New section", blocks: [] },
+                  ],
+                });
+              else
+                setEditing({
+                  sectionId: targetSection,
+                  isNew: true,
+                  block:
+                    addKind === "exercise"
+                      ? { id: uid(), kind: "exercise", exercise: newExercise() }
+                      : {
+                          id: uid(),
+                          kind: "superset",
+                          title: "Superset",
+                          rounds: 3,
+                          exercises: [newExercise(), newExercise()],
+                        },
+                });
+              setAdding(false);
+            }}
+          >
+            Add
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Button
         component={Link}
         href={base + "/courses"}
@@ -173,6 +299,7 @@ function CourseEditor({ initial }: { initial: TrainingCourse }) {
           <Button
             variant="outlined"
             startIcon={<SaveOutlined />}
+            disabled={saving}
             onClick={() => save(false)}
           >
             {draft.id ? "Save changes" : "Save draft"}
@@ -342,21 +469,6 @@ function CourseEditor({ initial }: { initial: TrainingCourse }) {
                 </Box>
               ))}
             </Stack>
-            <Button
-              startIcon={<Add />}
-              sx={{ mt: 2 }}
-              onClick={() =>
-                setDraft({
-                  ...draft,
-                  milestones: [
-                    ...draft.milestones,
-                    { id: uid(), title: "", week: 1 },
-                  ],
-                })
-              }
-            >
-              Add milestone
-            </Button>
           </Panel>
         </Box>
       )}
@@ -425,30 +537,34 @@ function CourseEditor({ initial }: { initial: TrainingCourse }) {
                 </Box>
               ))}
             </Stack>
-            <Button
-              fullWidth
-              startIcon={<Add />}
-              onClick={addDay}
-              sx={{ mt: 2 }}
-            >
-              Add training day
-            </Button>
           </Panel>
           <Box>
+            <TemplateTools
+              program={program}
+              onImport={(copy, kind) => {
+                if (kind === "exercise" && program) {
+                  const blocks = copy.sections.flatMap((s) => s.blocks);
+                  update({
+                    ...program,
+                    sections: program.sections.length
+                      ? program.sections.map((s, i) =>
+                          i === 0
+                            ? { ...s, blocks: [...s.blocks, ...blocks] }
+                            : s,
+                        )
+                      : [{ id: uid(), title: "Exercises", blocks }],
+                  });
+                } else {
+                  setDraft((p) => ({ ...p, programs: [...p.programs, copy] }));
+                  setDay(draft.programs.length);
+                }
+              }}
+            />
             {!program ? (
               <Panel>
                 <Empty
                   title="What does day one look like?"
-                  description="Create a training day, then add your own exercises and supersets."
-                  action={
-                    <Button
-                      variant="contained"
-                      startIcon={<Add />}
-                      onClick={addDay}
-                    >
-                      Add your first day
-                    </Button>
-                  }
+                  description="Use the Add button at the bottom right to create a day, section or exercise."
                 />
               </Panel>
             ) : (
@@ -713,62 +829,9 @@ function CourseEditor({ initial }: { initial: TrainingCourse }) {
                         A blank page for purposeful movement.
                       </Typography>
                     )}
-                    <Stack
-                      direction="row"
-                      sx={{ gap: 1, flexWrap: "wrap", mt: 2 }}
-                    >
-                      <Button
-                        startIcon={<Add />}
-                        onClick={() =>
-                          setEditing({
-                            sectionId: section.id,
-                            isNew: true,
-                            block: {
-                              id: uid(),
-                              kind: "exercise",
-                              exercise: newExercise(),
-                            },
-                          })
-                        }
-                      >
-                        Add exercise
-                      </Button>
-                      <Button
-                        startIcon={<Add />}
-                        onClick={() =>
-                          setEditing({
-                            sectionId: section.id,
-                            isNew: true,
-                            block: {
-                              id: uid(),
-                              kind: "superset",
-                              title: "Superset",
-                              rounds: 3,
-                              exercises: [newExercise(), newExercise()],
-                            },
-                          })
-                        }
-                      >
-                        Add superset
-                      </Button>
-                    </Stack>
                   </Panel>
                 ))}
-                <Button
-                  variant="outlined"
-                  startIcon={<Add />}
-                  onClick={() =>
-                    update({
-                      ...program,
-                      sections: [
-                        ...program.sections,
-                        { id: uid(), title: "New section", blocks: [] },
-                      ],
-                    })
-                  }
-                >
-                  Add section
-                </Button>
+
                 <Button variant="contained" onClick={() => setStep(2)}>
                   Review the plan
                 </Button>
@@ -882,16 +945,20 @@ function CourseEditor({ initial }: { initial: TrainingCourse }) {
         <DialogTitle>Ready for your athlete?</DialogTitle>
         <DialogContent>
           <Typography>
-            {draft.title} will appear as an active course in this preview.
+            {draft.title} will become available to your trainee in My training.
           </Typography>
           <Typography color="text.secondary" sx={{ fontSize: 14, mt: 2 }}>
-            No notifications will be sent.
+            They can open each day and record their actual workout.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPublish(false)}>Keep editing</Button>
-          <Button variant="contained" onClick={() => save(true)}>
-            Publish preview
+          <Button
+            variant="contained"
+            disabled={saving}
+            onClick={() => save(true)}
+          >
+            Publish course
           </Button>
         </DialogActions>
       </Dialog>

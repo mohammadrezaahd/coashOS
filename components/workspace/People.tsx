@@ -2,7 +2,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Alert,
   Avatar,
   Box,
   Button,
@@ -21,7 +20,6 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { Add, Close } from "@mui/icons-material";
 import { useWorkspace } from "./WorkspaceProvider";
 import {
   Empty,
@@ -37,15 +35,11 @@ export function People() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All levels");
   const [selected, setSelected] = useState<string | null>(null);
-  const [invite, setInvite] = useState(false);
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
   if (!isCoach)
     return (
       <Empty
         title="Your coach is here for you"
         description="Open messages to connect with your coach."
-        action={<GoLink href={base + "/messages"}>Messages</GoLink>}
       />
     );
   const visible = trainees.filter(
@@ -60,18 +54,6 @@ export function People() {
         eyebrow="Your people"
         title="Built on connection."
         description="A clear view of every athlete you coach."
-        action={
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => {
-              setInvite(true);
-              setSent(false);
-            }}
-          >
-            Invite trainee
-          </Button>
-        }
       />
       <Stack direction={{ xs: "column", sm: "row" }} sx={{ gap: 2, mb: 3 }}>
         <TextField
@@ -213,49 +195,6 @@ export function People() {
             Create course
           </Button>
         </DialogActions>
-      </Dialog>
-      <Dialog
-        open={invite}
-        onClose={() => setInvite(false)}
-        fullWidth
-        maxWidth="xs"
-      >
-        <Box
-          component="form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSent(true);
-          }}
-        >
-          <DialogTitle>Invite a trainee</DialogTitle>
-          <DialogContent>
-            <Typography color="text.secondary" sx={{ mb: 3 }}>
-              Give your athlete a place in your coaching workspace.
-            </Typography>
-            <TextField
-              label="Trainee email"
-              type="email"
-              required
-              fullWidth
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setSent(false);
-              }}
-            />
-            {sent && (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                Invitation preview for {email}. No email was sent.
-              </Alert>
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setInvite(false)}>Close</Button>
-            <Button variant="contained" type="submit">
-              Preview invitation
-            </Button>
-          </DialogActions>
-        </Box>
       </Dialog>
     </>
   );
